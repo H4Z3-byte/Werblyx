@@ -1,31 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-    <title>Werblyx Auto-Admin</title>
+    <meta charset="UTF-8">
+    <title>Werblyx Command Center</title>
     <style>
-        body { background: #14001F; color: #E8D2FF; font-family: sans-serif; text-align: center; padding: 40px; }
-        .box { background: #000; border: 1px solid #D9B3FF; padding: 30px; border-radius: 15px; display: inline-block; width: 400px; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #333; background: #1a1a1a; color: white; }
-        button { width: 100%; padding: 12px; background: #D9B3FF; color: #000; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px;}
-        .status { margin-top: 15px; font-size: 13px; color: #00FFC2; }
+        body { background: #0f0016; color: #d9b3ff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .box { background: #050008; border: 2px solid #482ff7; padding: 30px; border-radius: 20px; box-shadow: 0 0 20px rgba(72, 47, 247, 0.4); width: 450px; }
+        h2 { text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px; color: #fff; text-shadow: 0 0 10px #482ff7; }
+        .section { margin-bottom: 20px; text-align: left; border-bottom: 1px solid #222; padding-bottom: 15px; }
+        label { font-size: 12px; color: #888; margin-left: 5px; }
+        input { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: white; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #482ff7; box-shadow: 0 0 5px #482ff7; }
+        button { width: 100%; padding: 15px; background: #482ff7; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; }
+        button:hover { background: #351ec1; transform: scale(1.02); }
+        .status { margin-top: 20px; font-size: 14px; padding: 10px; border-radius: 5px; display: none; }
+        .success { background: rgba(0, 255, 194, 0.1); color: #00FFC2; display: block; border: 1px solid #00FFC2; }
+        .error { background: rgba(255, 0, 85, 0.1); color: #FF0055; display: block; border: 1px solid #FF0055; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>Werblyx Account Creator</h2>
-    <input type="text" id="token" placeholder="GitHub Token (pat_...)">
-    <input type="text" id="repo" placeholder="Username/RepoName">
-    <hr>
-    <input type="text" id="u" placeholder="New Username">
-    <input type="text" id="p" placeholder="New Password">
-    <input type="number" id="d" placeholder="Days (0 for PERMANENT)" value="30">
-    <button onclick="pushToGithub()">ADD TO GITHUB & ENCODE</button>
-    <div class="status" id="status">Ready.</div>
+    <h2>Werblyx Admin</h2>
+    
+    <!-- Configurazione (Salvata automaticamente) -->
+    <div class="section">
+        <label>GITHUB TOKEN</label>
+        <input type="password" id="token" placeholder="github_pat_..." onchange="saveConfig()">
+        <label>REPOSITORY (username/repo)</label>
+        <input type="text" id="repo" placeholder="es: H4Z3-byte/Werblyx" onchange="saveConfig()">
+    </div>
+
+    <!-- Nuovo Utente -->
+    <div class="section">
+        <label>NEW USERNAME</label>
+        <input type="text" id="u" placeholder="Nome utente">
+        <label>NEW PASSWORD</label>
+        <input type="text" id="p" placeholder="Password">
+        <label>VALIDITY (Days - 0 for PERMANENT)</label>
+        <input type="number" id="d" value="30">
+    </div>
+
+    <button onclick="pushToGithub()">ADD ACCOUNT NOW</button>
+    <div id="status" class="status"></div>
 </div>
 
 <script>
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    // Carica la configurazione all'apertura
+    window.onload = function() {
+        if(localStorage.getItem('wbx_token')) document.getElementById('token').value = localStorage.getItem('wbx_token');
+        if(localStorage.getItem('wbx_repo')) document.getElementById('repo').value = localStorage.getItem('wbx_repo');
+    };
+
+    function saveConfig() {
+        localStorage.setItem('wbx_token', document.getElementById('token').value);
+        localStorage.setItem('wbx_repo', document.getElementById('repo').value);
+    }
 
     async function pushToGithub() {
         const token = document.getElementById('token').value;
@@ -33,70 +65,65 @@
         const u = document.getElementById('u').value;
         const p = document.getElementById('p').value;
         const d = parseInt(document.getElementById('d').value);
-        const status = document.getElementById('status');
+        const statusDiv = document.getElementById('status');
 
-        if(!token || !repo || !u || !p) return alert("Riempi tutti i campi!");
-
-        status.innerText = "Encoding & Fetching current data...";
-
-        // 1. Encoding
-        const encoded = "DX_" + encode(`${u}:${p}`);
-        let expiry = "PERMANENT";
-        if(d > 0) {
-            const date = new Date();
-            date.setDate(date.getDate() + d);
-            expiry = date.toISOString().split('T')[0];
+        if(!token || !repo || !u || !p) {
+            showStatus("Riempi tutti i campi!", "error");
+            return;
         }
 
+        showStatus("Processando...", "");
+
+        const encoded = "DX_" + encode(`${u}:${p}`);
+        let expiry = (d === 0) ? "PERMANENT" : new Date(Date.now() + d * 86400000).toISOString().split('T')[0];
+
         try {
-            // 2. Aggiorna accountdata.txt
+            // Aggiorna accountdata.txt
             await updateFile(token, repo, 'accountdata.txt', (content) => {
-                const lines = content ? content.split('\n') : [];
+                let lines = content ? content.split('\n').map(l => l.trim()).filter(l => l) : [];
                 if(!lines.includes(encoded)) lines.push(encoded);
                 return lines.join('\n');
             });
 
-            // 3. Aggiorna expiry_log.json
+            // Aggiorna expiry_log.json
             await updateFile(token, repo, 'expiry_log.json', (content) => {
                 let log = content ? JSON.parse(content) : {};
                 log[encoded] = expiry;
                 return JSON.stringify(log, null, 2);
             });
 
-            status.innerText = "SUCCESS! Account added to GitHub.";
+            showStatus(`SUCCESSO: ${u} aggiunto!`, "success");
+            document.getElementById('u').value = "";
+            document.getElementById('p').value = "";
         } catch (e) {
-            status.innerText = "ERROR: " + e.message;
+            showStatus("ERRORE: " + e.message, "error");
         }
     }
 
     async function updateFile(token, repo, path, modifier) {
         const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+        const headers = { Authorization: `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
         
-        // Prendi il file attuale
-        const res = await fetch(url, { headers: { Authorization: `token ${token}` } });
+        const res = await fetch(url, { headers });
         let sha = "";
         let content = "";
         
         if(res.ok) {
             const data = await res.json();
             sha = data.sha;
-            content = atob(data.content); // Decode Base64 from GitHub
+            content = decodeURIComponent(escape(atob(data.content)));
         }
 
-        const newContent = btoa(modifier(content)); // Encode back to Base64
+        const newText = modifier(content);
+        const newContent = btoa(unescape(encodeURIComponent(newText)));
 
-        // Invia il file aggiornato
         const putRes = await fetch(url, {
             method: 'PUT',
-            headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: `Added/Updated ${path}`,
-                content: newContent,
-                sha: sha
-            })
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `Admin: update ${path}`, content: newContent, sha: sha })
         });
 
-        if(!putRes.ok) throw new Error(`Failed to update ${path}`);
+        if(!putRes.ok) throw new Error(`Fallito aggiornamento ${path}`);
     }
 
     function encode(t) {
@@ -107,6 +134,12 @@
             res += ALPHABET[Math.floor(shifted/64)] + ALPHABET[shifted%64];
         }
         return res.split("").reverse().join("");
+    }
+
+    function showStatus(msg, type) {
+        const s = document.getElementById('status');
+        s.innerText = msg;
+        s.className = "status " + type;
     }
 </script>
 </body>
