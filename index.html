@@ -2,20 +2,20 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Werblyx Command Center</title>
+    <title>WBX PANEL - READY TO GO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { background: #0f0016; color: #d9b3ff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .box { background: #050008; border: 2px solid #482ff7; padding: 30px; border-radius: 20px; box-shadow: 0 0 20px rgba(72, 47, 247, 0.4); width: 450px; }
-        h2 { text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px; color: #fff; text-shadow: 0 0 10px #482ff7; }
-        .section { margin-bottom: 20px; text-align: left; border-bottom: 1px solid #222; padding-bottom: 15px; }
-        label { font-size: 12px; color: #888; margin-left: 5px; }
-        input { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: white; box-sizing: border-box; outline: none; }
-        input:focus { border-color: #482ff7; box-shadow: 0 0 5px #482ff7; }
-        button { width: 100%; padding: 15px; background: #482ff7; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; }
-        button:hover { background: #351ec1; transform: scale(1.02); }
-        .status { margin-top: 20px; font-size: 14px; padding: 10px; border-radius: 5px; display: none; }
-        .success { background: rgba(0, 255, 194, 0.1); color: #00FFC2; display: block; border: 1px solid #00FFC2; }
-        .error { background: rgba(255, 0, 85, 0.1); color: #FF0055; display: block; border: 1px solid #FF0055; }
+        body { background: #050008; color: #d9b3ff; font-family: sans-serif; text-align: center; padding: 20px; }
+        .box { background: #000; border: 2px solid #482ff7; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; box-shadow: 0 0 15px rgba(72, 47, 247, 0.3); }
+        h2 { text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
+        label { display: block; text-align: left; font-size: 11px; color: #888; margin: 5px 0 0 5px; }
+        input { display: block; width: 100%; margin: 5px 0 15px 0; padding: 12px; background: #1a1a1a; color: white; border: 1px solid #333; border-radius: 5px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #482ff7; }
+        button { width: 100%; padding: 15px; background: #482ff7; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #351ec1; }
+        .status { margin-top: 15px; font-size: 13px; padding: 10px; border-radius: 5px; display: none; word-break: break-all; }
+        .success { display: block; background: rgba(0, 255, 150, 0.1); border: 1px solid #00ff96; color: #00ff96; }
+        .error { display: block; background: rgba(255, 0, 50, 0.1); border: 1px solid #ff0032; color: #ff0032; }
     </style>
 </head>
 <body>
@@ -23,76 +23,80 @@
 <div class="box">
     <h2>Werblyx Admin</h2>
     
-    <!-- Configurazione (Salvata automaticamente) -->
-    <div class="section">
-        <label>GITHUB TOKEN</label>
-        <input type="password" id="token" placeholder="github_pat_..." onchange="saveConfig()">
-        <label>REPOSITORY (username/repo)</label>
-        <input type="text" id="repo" placeholder="es: H4Z3-byte/Werblyx" onchange="saveConfig()">
-    </div>
+    <label>GITHUB TOKEN</label>
+    <input type="password" id="token" placeholder="github_pat_...">
+    
+    <label>REPOSITORY (user/repo)</label>
+    <input type="text" id="repo" placeholder="H4Z3-byte/Werblyx">
+    
+    <hr style="border: 0; border-top: 1px solid #222; margin: 20px 0;">
 
-    <!-- Nuovo Utente -->
-    <div class="section">
-        <label>NEW USERNAME</label>
-        <input type="text" id="u" placeholder="Nome utente">
-        <label>NEW PASSWORD</label>
-        <input type="text" id="p" placeholder="Password">
-        <label>VALIDITY (Days - 0 for PERMANENT)</label>
-        <input type="number" id="d" value="30">
-    </div>
+    <label>NEW USERNAME</label>
+    <input type="text" id="u" placeholder="Username">
+    
+    <label>NEW PASSWORD</label>
+    <input type="text" id="p" placeholder="Password">
+    
+    <label>VALIDITY (Days - 0 for PERMANENT)</label>
+    <input type="number" id="d" value="0">
 
-    <button onclick="pushToGithub()">ADD ACCOUNT NOW</button>
+    <button onclick="addAccount()">ADD ACCOUNT NOW</button>
+    
     <div id="status" class="status"></div>
 </div>
 
 <script>
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-    // Carica la configurazione all'apertura
+    // Carica Token e Repo salvati al caricamento della pagina
     window.onload = function() {
         if(localStorage.getItem('wbx_token')) document.getElementById('token').value = localStorage.getItem('wbx_token');
         if(localStorage.getItem('wbx_repo')) document.getElementById('repo').value = localStorage.getItem('wbx_repo');
     };
 
-    function saveConfig() {
-        localStorage.setItem('wbx_token', document.getElementById('token').value);
-        localStorage.setItem('wbx_repo', document.getElementById('repo').value);
-    }
-
-    async function pushToGithub() {
-        const token = document.getElementById('token').value;
-        const repo = document.getElementById('repo').value;
-        const u = document.getElementById('u').value;
-        const p = document.getElementById('p').value;
+    async function addAccount() {
+        const token = document.getElementById('token').value.trim();
+        const repo = document.getElementById('repo').value.trim();
+        const u = document.getElementById('u').value.trim();
+        const p = document.getElementById('p').value.trim();
         const d = parseInt(document.getElementById('d').value);
-        const statusDiv = document.getElementById('status');
+        const status = document.getElementById('status');
 
         if(!token || !repo || !u || !p) {
-            showStatus("Riempi tutti i campi!", "error");
+            showStatus("ERRORE: Riempi tutti i campi!", "error");
             return;
         }
 
-        showStatus("Processando...", "");
+        // Salva Token e Repo localmente
+        localStorage.setItem('wbx_token', token);
+        localStorage.setItem('wbx_repo', repo);
+
+        showStatus("In corso...", "");
 
         const encoded = "DX_" + encode(`${u}:${p}`);
         let expiry = (d === 0) ? "PERMANENT" : new Date(Date.now() + d * 86400000).toISOString().split('T')[0];
 
         try {
-            // Aggiorna accountdata.txt
+            // 1. Aggiorna accountdata.txt
             await updateFile(token, repo, 'accountdata.txt', (content) => {
-                let lines = content ? content.split('\n').map(l => l.trim()).filter(l => l) : [];
+                let lines = content ? content.split('\n').filter(l => l.trim()) : [];
                 if(!lines.includes(encoded)) lines.push(encoded);
                 return lines.join('\n');
             });
 
-            // Aggiorna expiry_log.json
+            // 2. Aggiorna expiry_log.json
             await updateFile(token, repo, 'expiry_log.json', (content) => {
-                let log = content ? JSON.parse(content) : {};
+                let log = {};
+                try {
+                    // Risolve l'errore JSON input: se il file è vuoto o invalido, usa {}
+                    log = (content && content.trim()) ? JSON.parse(content) : {};
+                } catch(e) { log = {}; }
+                
                 log[encoded] = expiry;
                 return JSON.stringify(log, null, 2);
             });
 
-            showStatus(`SUCCESSO: ${u} aggiunto!`, "success");
+            showStatus(`SUCCESSO: Account ${u} aggiunto!`, "success");
             document.getElementById('u').value = "";
             document.getElementById('p').value = "";
         } catch (e) {
@@ -104,10 +108,10 @@
         const url = `https://api.github.com/repos/${repo}/contents/${path}`;
         const headers = { Authorization: `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
         
-        const res = await fetch(url, { headers });
         let sha = "";
         let content = "";
         
+        const res = await fetch(url, { headers });
         if(res.ok) {
             const data = await res.json();
             sha = data.sha;
@@ -120,10 +124,13 @@
         const putRes = await fetch(url, {
             method: 'PUT',
             headers: { ...headers, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: `Admin: update ${path}`, content: newContent, sha: sha })
+            body: JSON.stringify({ message: `Update ${path}`, content: newContent, sha: sha })
         });
 
-        if(!putRes.ok) throw new Error(`Fallito aggiornamento ${path}`);
+        if(!putRes.ok) {
+            const errData = await putRes.json();
+            throw new Error(errData.message || `Errore su ${path}`);
+        }
     }
 
     function encode(t) {
