@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Werblyx Auto-Admin</title>
+    <style>
+        body { background: #14001F; color: #E8D2FF; font-family: sans-serif; text-align: center; padding: 40px; }
+        .box { background: #000; border: 1px solid #D9B3FF; padding: 30px; border-radius: 15px; display: inline-block; width: 400px; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #333; background: #1a1a1a; color: white; }
+        button { width: 100%; padding: 12px; background: #D9B3FF; color: #000; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px;}
+        .status { margin-top: 15px; font-size: 13px; color: #00FFC2; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Werblyx Account Creator</h2>
+    <input type="text" id="token" placeholder="GitHub Token (pat_...)">
+    <input type="text" id="repo" placeholder="Username/RepoName">
+    <hr>
+    <input type="text" id="u" placeholder="New Username">
+    <input type="text" id="p" placeholder="New Password">
+    <input type="number" id="d" placeholder="Days (0 for PERMANENT)" value="30">
+    <button onclick="pushToGithub()">ADD TO GITHUB & ENCODE</button>
+    <div class="status" id="status">Ready.</div>
+</div>
+
+<script>
+    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    async function pushToGithub() {
+        const token = document.getElementById('token').value;
+        const repo = document.getElementById('repo').value;
+        const u = document.getElementById('u').value;
+        const p = document.getElementById('p').value;
+        const d = parseInt(document.getElementById('d').value);
+        const status = document.getElementById('status');
+
+        if(!token || !repo || !u || !p) return alert("Riempi tutti i campi!");
+
+        status.innerText = "Encoding & Fetching current data...";
+
+        // 1. Encoding
+        const encoded = "DX_" + encode(`${u}:${p}`);
+        let expiry = "PERMANENT";
+        if(d > 0) {
+            const date = new Date();
+            date.setDate(date.getDate() + d);
+            expiry = date.toISOString().split('T')[0];
+        }
+
+        try {
+            // 2. Aggiorna accountdata.txt
+            await updateFile(token, repo, 'accountdata.txt', (content) => {
+                const lines = content ? content.split('\n') : [];
+                if(!lines.includes(encoded)) lines.push(encoded);
+                return lines.join('\n');
+            });
+
+            // 3. Aggiorna expiry_log.json
+            await updateFile(token, repo, 'expiry_log.json', (content) => {
+                let log = content ? JSON.parse(content) : {};
+                log[encoded] = expiry;
+                return JSON.stringify(log, null, 2);
+            });
+
+            status.innerText = "SUCCESS! Account added to GitHub.";
+        } catch (e) {
+            status.innerText = "ERROR: " + e.message;
+        }
+    }
+
+    async function updateFile(token, repo, path, modifier) {
+        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+        
+        // Prendi il file attuale
+        const res = await fetch(url, { headers: { Authorization: `token ${token}` } });
+        let sha = "";
+        let content = "";
+        
+        if(res.ok) {
+            const data = await res.json();
+            sha = data.sha;
+            content = atob(data.content); // Decode Base64 from GitHub
+        }
+
+        const newContent = btoa(modifier(content)); // Encode back to Base64
+
+        // Invia il file aggiornato
+        const putRes = await fetch(url, {
+            method: 'PUT',
+            headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: `Added/Updated ${path}`,
+                content: newContent,
+                sha: sha
+            })
+        });
+
+        if(!putRes.ok) throw new Error(`Failed to update ${path}`);
+    }
+
+    function encode(t) {
+        let res = "";
+        for (let i = 0; i < t.length; i++) {
+            let v = (t.charCodeAt(i) ^ 0x7A);
+            let shifted = (v + (i % 64)) % 256;
+            res += ALPHABET[Math.floor(shifted/64)] + ALPHABET[shifted%64];
+        }
+        return res.split("").reverse().join("");
+    }
+</script>
+</body>
+</html>
