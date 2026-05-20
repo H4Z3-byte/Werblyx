@@ -16,20 +16,34 @@
         .status { margin-top: 15px; font-size: 13px; padding: 10px; border-radius: 5px; display: none; word-break: break-all; }
         .success { display: block; background: rgba(0, 255, 150, 0.1); border: 1px solid #00ff96; color: #00ff96; }
         .error { display: block; background: rgba(255, 0, 50, 0.1); border: 1px solid #ff0032; color: #ff0032; }
+        
+        /* Stili per la schermata di Login */
+        #login-box { display: block; }
+        #admin-panel { display: none; }
     </style>
 </head>
 <body>
 
-<div class="box">
+<!-- SCHERMATA DI LOGIN -->
+<div id="login-box" class="box">
+    <h2>Accesso Riservato</h2>
+    <label>USERNAME</label>
+    <input type="text" id="login-user" placeholder="Inserisci username">
+    
+    <label>PASSWORD</label>
+    <input type="password" id="login-pass" placeholder="Inserisci password">
+    
+    <button onclick="checkLogin()">ACCEDI</button>
+    <div id="login-status" class="status"></div>
+</div>
+
+<!-- PANNELLO ADMIN (Nascosto di default) -->
+<div id="admin-panel" class="box">
     <h2>Werblyx Admin</h2>
     
-    <label>GITHUB TOKEN</label>
-    <input type="password" id="token" placeholder="github_pat_...">
-    
-    <label>REPOSITORY (user/repo)</label>
-    <input type="text" id="repo" placeholder="H4Z3-byte/Werblyx">
-    
-    <hr style="border: 0; border-top: 1px solid #222; margin: 20px 0;">
+    <p style="font-size: 12px; color: #00ff96; text-align: left; margin: 0 0 15px 5px;">
+        ✓ Credenziali GitHub caricate internamente
+    </p>
 
     <label>NEW USERNAME</label>
     <input type="text" id="u" placeholder="Username">
@@ -46,30 +60,67 @@
 </div>
 
 <script>
+    // ==========================================
+    // CONFIGURAZIONE STATICA CREDENZIALI GITHUB
+    // Sostituisci i valori tra virgolette con i tuoi dati reali
+    // ==========================================
+    const GITHUB_TOKEN = "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"; 
+    const GITHUB_REPO  = "H4Z3-byte/Werblyx"; 
+    // ==========================================
+
     const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-    // Carica Token e Repo salvati al caricamento della pagina
+    // Controllo sessione all'avvio
     window.onload = function() {
-        if(localStorage.getItem('wbx_token')) document.getElementById('token').value = localStorage.getItem('wbx_token');
-        if(localStorage.getItem('wbx_repo')) document.getElementById('repo').value = localStorage.getItem('wbx_repo');
+        if(sessionStorage.getItem('wbx_logged') === 'true') {
+            showPanel();
+        }
     };
 
+    // Funzione per verificare le credenziali d'accesso locali
+    function checkLogin() {
+        const user = document.getElementById('login-user').value.trim();
+        const pass = document.getElementById('login-pass').value;
+        const loginStatus = document.getElementById('login-status');
+
+        if(user === "btween" && pass === "Creatores!") {
+            sessionStorage.setItem('wbx_logged', 'true');
+            showPanel();
+        } else {
+            loginStatus.innerText = "Credenziali errate! Accesso negato.";
+            loginStatus.className = "status error";
+        }
+    }
+
+    // Mostra il pannello principale e nasconde il login
+    function showPanel() {
+        document.getElementById('login-box').style.display = 'none';
+        document.getElementById('admin-panel').style.display = 'block';
+    }
+
     async function addAccount() {
-        const token = document.getElementById('token').value.trim();
-        const repo = document.getElementById('repo').value.trim();
+        // Blocco di sicurezza ulteriore basato sulla sessione
+        if(sessionStorage.getItem('wbx_logged') !== 'true') {
+            alert("Azione non autorizzata!");
+            location.reload();
+            return;
+        }
+
         const u = document.getElementById('u').value.trim();
         const p = document.getElementById('p').value.trim();
         const d = parseInt(document.getElementById('d').value);
         const status = document.getElementById('status');
 
-        if(!token || !repo || !u || !p) {
-            showStatus("ERRORE: Riempi tutti i campi!", "error");
+        // Verifica la presenza delle variabili statiche e dei campi utente
+        if(GITHUB_TOKEN === "IL_TUO_NUOVO_TOKEN_QUI" || !GITHUB_REPO) {
+            showStatus("ERRORE: Configura prima il token nel codice JavaScript!", "error");
             return;
         }
 
-        // Salva Token e Repo localmente
-        localStorage.setItem('wbx_token', token);
-        localStorage.setItem('wbx_repo', repo);
+        if(!u || !p) {
+            showStatus("ERRORE: Riempi tutti i campi dell'account!", "error");
+            return;
+        }
 
         showStatus("In corso...", "");
 
@@ -77,18 +128,17 @@
         let expiry = (d === 0) ? "PERMANENT" : new Date(Date.now() + d * 86400000).toISOString().split('T')[0];
 
         try {
-            // 1. Aggiorna accountdata.txt
-            await updateFile(token, repo, 'accountdata.txt', (content) => {
+            // 1. Aggiorna accountdata.txt usando le costanti
+            await updateFile(GITHUB_TOKEN, GITHUB_REPO, 'accountdata.txt', (content) => {
                 let lines = content ? content.split('\n').filter(l => l.trim()) : [];
                 if(!lines.includes(encoded)) lines.push(encoded);
                 return lines.join('\n');
             });
 
-            // 2. Aggiorna expiry_log.json
-            await updateFile(token, repo, 'expiry_log.json', (content) => {
+            // 2. Aggiorna expiry_log.json usando le costanti
+            await updateFile(GITHUB_TOKEN, GITHUB_REPO, 'expiry_log.json', (content) => {
                 let log = {};
                 try {
-                    // Risolve l'errore JSON input: se il file è vuoto o invalido, usa {}
                     log = (content && content.trim()) ? JSON.parse(content) : {};
                 } catch(e) { log = {}; }
                 
