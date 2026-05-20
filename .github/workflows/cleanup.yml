@@ -1,1 +1,13 @@
 
+name: Cleanup Workflow
+
+# Si attiva SOLO manualmente dalla scheda Actions
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "Questo file serve per il futuro."
